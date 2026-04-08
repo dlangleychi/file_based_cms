@@ -1,4 +1,3 @@
-from markdown import markdown
 import os
 from flask import (
     Flask,
@@ -7,7 +6,9 @@ from flask import (
     flash,
     redirect,
     url_for,
+    request,
 )
+from markdown import markdown
 
 app = Flask(__name__)
 app.secret_key = 'secret'
@@ -35,6 +36,33 @@ def file_content(filename):
     else:
         flash(f"{filename} does not exist.")
         return redirect(url_for('index'))
+
+@app.route("/<filename>/edit")
+def edit_file(filename):
+    root = os.path.abspath(os.path.dirname(__file__))
+    data_dir = os.path.join(root, "file_based_cms", "data")
+    file_path = os.path.join(data_dir, filename)
+
+    if os.path.isfile(file_path):
+        with open(file_path, 'r') as file:
+            content = file.read()
+        return render_template('edit.html', filename=filename, content=content)
+    else:
+        flash(f"{filename} does not exist.")
+        return redirect(url_for('index'))
+
+@app.route("/<filename>", methods=['POST'])
+def save_file(filename):
+    root = os.path.abspath(os.path.dirname(__file__))
+    data_dir = os.path.join(root, "file_based_cms", "data")
+    file_path = os.path.join(data_dir, filename)
+
+    content = request.form['content']
+    with open(file_path, 'w') as file:
+        file.write(content)
+
+    flash(f"{filename} has been updated.")
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(debug=True, port=5003) # Use port 8080 on Cloud9

@@ -1,4 +1,6 @@
 import unittest
+import shutil
+import os
 from app import app
 
 class CMSTest(unittest.TestCase):
@@ -6,17 +8,31 @@ class CMSTest(unittest.TestCase):
     def setUp(self):
         app.config['TESTING'] = True
         self.client = app.test_client()
+        self.data_path = os.path.join(os.path.dirname(__file__), 'data')
+        os.makedirs(self.data_path, exist_ok=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.data_path, ignore_errors=True)
+
+    def create_document(self, name, content=""):
+        with open(os.path.join(self.data_path, name), 'w') as file:
+            file.write(content)
 
     def test_index(self):
+        self.create_document("about.md")
+        self.create_document("changes.txt")
+
         response = self.client.get('/')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content_type, "text/html; charset=utf-8")
         self.assertIn("about.md", response.get_data(as_text=True))
         self.assertIn("changes.txt", response.get_data(as_text=True))
-        self.assertIn("history.txt", response.get_data(as_text=True))
 
     def test_viewing_text_document(self):
+        self.create_document("history.txt",
+                             "Python 0.9.0 (initial release) is released.")
+
         with self.client.get('/history.txt') as response:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content_type, "text/plain; charset=utf-8")
@@ -40,12 +56,16 @@ class CMSTest(unittest.TestCase):
                              response.get_data(as_text=True))
 
     def test_viewing_markdown_document(self):
+        self.create_document("about.md", "# Python is...")
+
         response = self.client.get('/about.md')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content_type, "text/html; charset=utf-8")
         self.assertIn("<h1>Python is...</h1>", response.get_data(as_text=True))
 
     def test_editing_document(self):
+        self.create_document("changes.txt")
+
         response = self.client.get("/changes.txt/edit")
         self.assertEqual(response.status_code, 200)
         self.assertIn("<textarea", response.get_data(as_text=True))

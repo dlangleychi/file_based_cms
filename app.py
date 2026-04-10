@@ -1,12 +1,14 @@
 import os
 from flask import (
     Flask,
+    # g,
     render_template,
     send_from_directory,
     flash,
     redirect,
     url_for,
     request,
+    session,
 )
 from markdown import markdown
 
@@ -18,6 +20,10 @@ def get_data_path():
         return os.path.join(os.path.dirname(__file__), 'tests', 'data')
     else:
         return os.path.join(os.path.dirname(__file__), 'file_based_cms', 'data')
+    
+# @app.before_request
+# def load_user():
+#     g.user = session.get('user')
 
 @app.route("/")
 def index():
@@ -101,5 +107,29 @@ def delete_file(filename):
 
     return redirect(url_for('index'))
 
+@app.route("/users/signin")
+def show_signin_form():
+    return render_template('signin.html')
+
+@app.route("/users/signin", methods=['POST'])
+def signin():
+    username = request.form.get('username')
+    password = request.form.get('password')
+
+    if username == "admin" and password == "secret":
+        session['username'] = username
+        flash("Welcome!")
+        return redirect(url_for('index'))
+    else:
+        flash("Invalid credentials")
+        return render_template('signin.html'), 422
+
+@app.route("/users/signout", methods=['POST'])
+def signout():
+    session.pop('username', None)
+    flash("You have been signed out.")
+    return redirect(url_for('index'))
+
 if __name__ == "__main__":
     app.run(debug=True, port=5003) # Use port 8080 on Cloud9
+

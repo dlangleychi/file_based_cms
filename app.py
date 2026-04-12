@@ -1,7 +1,7 @@
 import os
+from functools import wraps
 from flask import (
     Flask,
-    # g,
     render_template,
     send_from_directory,
     flash,
@@ -15,15 +15,25 @@ from markdown import markdown
 app = Flask(__name__)
 app.secret_key = 'secret'
 
+def user_signed_in():
+    return 'username' in session
+
+def require_signed_in_user(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not user_signed_in():
+            flash("You must be signed in to do that.")
+            return redirect(url_for('show_signin_form'))
+
+        return f(*args, **kwargs)
+
+    return decorated_function
+
 def get_data_path():
     if app.config['TESTING']:
         return os.path.join(os.path.dirname(__file__), 'tests', 'data')
     else:
         return os.path.join(os.path.dirname(__file__), 'file_based_cms', 'data')
-    
-# @app.before_request
-# def load_user():
-#     g.user = session.get('user')
 
 @app.route("/")
 def index():
@@ -48,6 +58,7 @@ def file_content(filename):
         return redirect(url_for('index'))
 
 @app.route("/<filename>/edit")
+@require_signed_in_user
 def edit_file(filename):
     data_dir = get_data_path()
     file_path = os.path.join(data_dir, filename)
@@ -61,6 +72,7 @@ def edit_file(filename):
         return redirect(url_for('index'))
 
 @app.route("/<filename>", methods=['POST'])
+@require_signed_in_user
 def save_file(filename):
     data_dir = get_data_path()
     file_path = os.path.join(data_dir, filename)
@@ -73,10 +85,12 @@ def save_file(filename):
     return redirect(url_for('index'))
 
 @app.route("/new")
+@require_signed_in_user
 def new_document():
     return render_template('new.html')
 
 @app.route("/create", methods=['POST'])
+@require_signed_in_user
 def create_file():
     filename = request.form.get('filename', '').strip()
     data_dir = get_data_path()
@@ -95,6 +109,7 @@ def create_file():
         return redirect(url_for('index'))
 
 @app.route("/<filename>/delete", methods=['POST'])
+@require_signed_in_user
 def delete_file(filename):
     data_dir = get_data_path()
     file_path = os.path.join(data_dir, filename)
@@ -132,4 +147,3 @@ def signout():
 
 if __name__ == "__main__":
     app.run(debug=True, port=5003) # Use port 8080 on Cloud9
-

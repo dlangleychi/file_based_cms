@@ -11,9 +11,21 @@ from flask import (
     session,
 )
 from markdown import markdown
+import yaml
 
 app = Flask(__name__)
 app.secret_key = 'secret'
+
+def load_user_credentials():
+    filename = 'users.yml'
+    root_dir = os.path.dirname(__file__)
+    if app.config['TESTING']:
+        credentials_path = os.path.join(root_dir, 'tests', filename)
+    else:
+        credentials_path = os.path.join(root_dir, "file_based_cms", filename)
+
+    with open(credentials_path, 'r') as file:
+        return yaml.safe_load(file)
 
 def user_signed_in():
     return 'username' in session
@@ -131,7 +143,8 @@ def signin():
     username = request.form.get('username')
     password = request.form.get('password')
 
-    if username == "admin" and password == "secret":
+    credentials = load_user_credentials()
+    if username in credentials and credentials[username] == password:
         session['username'] = username
         flash("Welcome!")
         return redirect(url_for('index'))
